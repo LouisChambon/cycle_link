@@ -1,4 +1,4 @@
-package com.example.cycle_link
+package com.example.cycle_link.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement

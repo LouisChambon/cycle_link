@@ -16,6 +16,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.cycle_link.screens.HomeScreen
+import com.example.cycle_link.screens.LoginScreen
+import com.example.cycle_link.screens.RegisterScreen
 import com.example.cycle_link.ui.theme.Cycle_linkTheme
 
 class MainActivity : ComponentActivity() {
