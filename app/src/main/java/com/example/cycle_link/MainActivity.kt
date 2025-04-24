@@ -21,11 +21,11 @@ import com.example.cycle_link.screens.LoginScreen
 import com.example.cycle_link.screens.RegisterScreen
 import com.example.cycle_link.ui.theme.Cycle_linkTheme
 import com.example.cycle_link.navigation.BottomBar
-import com.example.cycle_link.navigation.FavoritesScreen
-import com.example.cycle_link.navigation.ProfileScreen
-import com.example.cycle_link.navigation.PublishScreen
 import com.example.cycle_link.navigation.Screen
 import com.example.cycle_link.navigation.bottomTabs
+import com.example.cycle_link.screens.ProfileScreen
+import com.example.cycle_link.screens.PublishScreen
+import com.example.cycle_link.screens.FavoritesScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,7 +72,6 @@ fun MainApp() {
 
             Screen.Home -> HomeScreen(
                 modifier      = Modifier.padding(innerPadding),
-                onLogoutClick = { currentScreen = Screen.Login },
                 onBikeClick   = { id ->
                     selectedBikeId = id
                     currentScreen = Screen.BikeDetail
