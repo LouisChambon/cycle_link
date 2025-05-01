@@ -55,7 +55,7 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx:22.1.1")
     implementation("com.google.firebase:firebase-firestore-ktx:24.5.2")
     implementation("com.google.firebase:firebase-storage-ktx:20.1.0")
-
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
     // Retrofit for API calls
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")

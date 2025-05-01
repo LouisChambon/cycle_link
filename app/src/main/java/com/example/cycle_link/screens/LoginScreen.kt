@@ -2,6 +2,7 @@ package com.example.cycle_link.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,12 +26,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.cycle_link.ui.theme.Cycle_linkTheme
+import com.example.cycle_link.components.GoogleSignInButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
     onLoginClick: (String, String) -> Unit = { _, _ -> },
+    onGoogleClick: () -> Unit = {},
     onRegisterClick: () -> Unit = {}
 ) {
     var email by remember { mutableStateOf("") }
@@ -96,6 +99,9 @@ fun LoginScreen(
         ) {
             Text("Se connecter")
         }
+
+        Spacer(Modifier.height(12.dp))
+        GoogleSignInButton(onClick = onGoogleClick)
 
         TextButton(
             onClick = onRegisterClick,

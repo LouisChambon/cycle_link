@@ -26,12 +26,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.cycle_link.ui.theme.Cycle_linkTheme
 import android.util.Log
+import androidx.compose.foundation.layout.Spacer
+import com.example.cycle_link.components.GoogleSignInButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     modifier: Modifier = Modifier,
     onRegisterClick: (name: String, email: String, password: String) -> Unit,
+    onGoogleClick: () -> Unit = {},
     onLoginClick: () -> Unit = {}
 ) {
     var name by remember { mutableStateOf("") }
@@ -138,6 +141,9 @@ fun RegisterScreen(
         ) {
             Text("S'inscrire")
         }
+
+        Spacer(Modifier.height(12.dp))
+        GoogleSignInButton(onClick = onGoogleClick)
 
         TextButton(
             onClick = onLoginClick,
