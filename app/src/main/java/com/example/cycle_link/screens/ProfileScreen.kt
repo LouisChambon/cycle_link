@@ -124,7 +124,7 @@ fun ProfileScreen(
             Spacer(Modifier.height(24.dp))
 
             OutlinedTextField(
-                value = "Customer",
+                value = user?.role.orEmpty(),
                 onValueChange = { },
                 label = { Text("Role") },
                 enabled = false,
