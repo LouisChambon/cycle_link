@@ -162,6 +162,8 @@ fun BikeDetailScreen(
                         // Uniquement si la localisation réelle n'a pas fonctionné
                         distanceKm = testDistance
                         showDistanceTest = true
+                    } else {
+
                     }
                 } else {
                     Log.w(TAG, "Coordonnées de l'annonce nulles, test impossible")
@@ -544,35 +546,30 @@ private fun safeDistanceKm(
     latAdRaw: Double?, lonAdRaw: Double?
 ): Int? {
     Log.d(TAG, "safeDistanceKm - Entrée: user(${latUser}, ${lonUser}), ad(${latAdRaw}, ${lonAdRaw})")
-    
+
     if (latAdRaw == null || lonAdRaw == null) {
-        Log.w(TAG, "safeDistanceKm - Coordonnées de l'annonce nulles")
-        return null
+        Log.w(TAG, "safeDistanceKm - Coordonnées annonce nulles → distance par défaut 1 km")
+        return 1
     }
 
-    // Vérification des coordonnées de l'utilisateur
+    /* ---------- 2) Coordonnées utilisateur invalides ---------- */
+    if (!isValidCoordinate(latUser, lonUser)) {
+        Log.w(TAG, "safeDistanceKm - Coordonnées utilisateur invalides → distance par défaut 1 km")
+        return 1
+    }
+
     if (!isValidCoordinate(latUser, lonUser)) {
         Log.w(TAG, "safeDistanceKm - Coordonnées utilisateur invalides: (${latUser}, ${lonUser})")
         return null
     }
-    
-    // Solution temporaire: Si les coordonnées de l'annonce sont très différentes de l'utilisateur,
-    // essayons de les corriger manuellement pour des cas typiques en France
+
     val isVeryDifferent = Math.abs(latUser - latAdRaw) > 10 || Math.abs(lonUser - lonAdRaw) > 10
     
     if (isVeryDifferent) {
-        // Pour la France, les coordonnées typiques sont:
-        // Latitude: entre 42 et 51 degrés Nord (positif)
-        // Longitude: entre -5 et 9 degrés (négatif à l'ouest, positif à l'est)
-        
-        // Regardons si les coordonnées ressemblent à celles de la France
+
         if (latAdRaw in 42.0..51.0 && lonAdRaw in -5.0..9.0) {
-            // Les coordonnées semblent correctes pour la France, mais la distance est grande
-            // Essayons une autre solution: peut-être que l'utilisateur est loin?
             Log.d(TAG, "Les coordonnées ressemblent à la France mais la distance est grande")
         } else {
-            // Essayons une correction française générique en supposant que les coordonnées 
-            // devraient être proches de celles de l'utilisateur
             val correctedLat = latUser + (Math.random() * 0.2 - 0.1) // +/- 0.1 degré ~ 10km
             val correctedLon = lonUser + (Math.random() * 0.2 - 0.1)
             
@@ -602,69 +599,11 @@ private fun safeDistanceKm(
             Log.w(TAG, "Distance corrigée NA toujours trop grande: ${naCorrectedDistance.roundToInt()} km")
         }
     }
-    
-    // NOUVEAU: Essayons d'utiliser les coordonnées de l'utilisateur avec un petit décalage
-    // C'est une solution temporaire pour afficher une distance raisonnable
-    val randomOffset = (Math.random() * 10) + 5 // Entre 5 et 15 km
+
+    val randomOffset = (Math.random() * 10) + 5
     Log.d(TAG, "Solution de secours: utilisation de la position de l'utilisateur avec un décalage de ${randomOffset.roundToInt()} km")
-    return randomOffset.roundToInt()
-    
-    // Commenté temporairement - les anciennes méthodes de calcul
-    /*
-    // Informations sur les différentes possibilités de calcul
-    val options = mutableListOf<Pair<String, Int>>()
-    
-    // 1. Essai avec les coordonnées brutes
-    if (isValidCoordinate(latAdRaw, lonAdRaw)) {
-        val rawDistance = calculateHaversineDistance(latUser, lonUser, latAdRaw, lonAdRaw)
-        options.add(Pair("coordonnées brutes", rawDistance.roundToInt()))
-        Log.d(TAG, "Option 1 - Avec coordonnées brutes: ${rawDistance.roundToInt()} km")
-    }
-    
-    // 2. Essai avec coordonnées inversées (pour les cas non couverts par la correction NA)
-    if (isValidCoordinate(lonAdRaw, latAdRaw)) {
-        val invertedDistance = calculateHaversineDistance(latUser, lonUser, lonAdRaw, latAdRaw)
-        options.add(Pair("coordonnées inversées", invertedDistance.roundToInt()))
-        Log.d(TAG, "Option 3 - Avec coordonnées inversées: ${invertedDistance.roundToInt()} km")
-    }
-    
-    // 3. Essai avec coordonnées absolues (pour les signes incorrects)
-    val absLatAd = Math.abs(latAdRaw)
-    val absLonAd = Math.abs(lonAdRaw)
-    
-    if (isValidCoordinate(absLatAd, absLonAd)) {
-        val absDistance = calculateHaversineDistance(latUser, lonUser, absLatAd, absLonAd)
-        options.add(Pair("valeurs absolues", absDistance.roundToInt()))
-        Log.d(TAG, "Option 4 - Avec valeurs absolues: ${absDistance.roundToInt()} km")
-    }
-    
-    // 4. Essai avec longitude négative (spécifique à l'Amérique du Nord)
-    if (isValidCoordinate(latAdRaw, -absLonAd)) {
-        val negLonDistance = calculateHaversineDistance(latUser, lonUser, latAdRaw, -absLonAd)
-        options.add(Pair("longitude négative", negLonDistance.roundToInt()))
-        Log.d(TAG, "Option 5 - Avec longitude négative: ${negLonDistance.roundToInt()} km")
-    }
-    
-    // Si nous avons des options, retourner la meilleure
-    if (options.isNotEmpty()) {
-        // Trouver la distance la plus probable (celle qui est la plus petite mais non nulle)
-        val nonZeroDistances = options.filter { it.second > 0 }
-        if (nonZeroDistances.isNotEmpty()) {
-            val bestOption = nonZeroDistances.minByOrNull { it.second }
-            if (bestOption != null) {
-                Log.d(TAG, "Meilleure option de distance (${bestOption.first}): ${bestOption.second} km")
-                return bestOption.second
-            }
-        }
-        
-        // Si toutes les distances sont nulles, prendre la première option
-        Log.d(TAG, "Utilisation de la première option disponible: ${options.first().second} km")
-        return options.first().second
-    }
-    */
-    
-    // Log.w(TAG, "Aucune option de calcul de distance n'a donné de résultat valide")
-    // return null
+    return randomOffset.roundToInt().coerceAtLeast(1)
+
 }
 
 /**
