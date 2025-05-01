@@ -2,6 +2,7 @@ package com.example.cycle_link.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Handler
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +31,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import kotlin.math.*
+import androidx.compose.foundation.background
 
 private const val TAG = "BikeDetail"
 
@@ -50,6 +52,7 @@ fun BikeDetailScreen(
     var isFavorite  by remember { mutableStateOf(false) }
     var distanceKm  by remember { mutableStateOf<Int?>(null) }
     var isAdmin     by remember { mutableStateOf(false) }
+    var updateStatusMessage by remember { mutableStateOf<String?>(null) }
     
     // Ajout d'un bouton pour tester la distance avec des coordonnées fixes
     var showDistanceTest by remember { mutableStateOf(false) }
@@ -61,8 +64,13 @@ fun BikeDetailScreen(
     
     // Check if user is admin
     LaunchedEffect(uid) {
-        val userDoc = firestore.collection("users").document(uid).get().await()
-        isAdmin = userDoc.getString("role") == "admin"
+        try {
+            val userDoc = firestore.collection("users").document(uid).get().await()
+            isAdmin = userDoc.getString("role") == "admin"
+            Log.d(TAG, "Vérification admin: utilisateur est ${if (isAdmin) "admin" else "non admin"}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Erreur lors de la vérification admin: ${e.message}")
+        }
     }
 
     /* ---------- permission localisation ---------- */
@@ -245,19 +253,72 @@ fun BikeDetailScreen(
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(16.dp)
                 )
-                bike != null  -> BikeDetailContent(
-                    bikeAd = bike!!,
-                    distanceKm = distanceKm,
-                    correctionType = correctionType,
-                    isAdmin = isAdmin,
-                    onStatusUpdate = { newStatus ->
-                        firestore.collection("bikes").document(bikeId)
-                            .update("status", newStatus)
-                            .addOnSuccessListener {
-                                bike = bike?.copy(status = newStatus)
+                bike != null  -> {
+                    Column {
+                        // Affiche le message de mise à jour du statut si disponible
+                        updateStatusMessage?.let { message ->
+                            val isError = message.startsWith("Erreur")
+                            Text(
+                                text = message,
+                                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp)
+                                    .background(
+                                        if (isError) MaterialTheme.colorScheme.errorContainer
+                                        else MaterialTheme.colorScheme.primaryContainer
+                                    )
+                                    .padding(8.dp)
+                            )
+                        }
+                        
+                        BikeDetailContent(
+                            bikeAd = bike!!,
+                            distanceKm = distanceKm,
+                            correctionType = correctionType,
+                            isAdmin = isAdmin,
+                            onStatusUpdate = { newStatus ->
+                                Log.d(TAG, "Tentative de mise à jour du statut: $newStatus")
+                                updateStatusMessage = "Mise à jour en cours..."
+                                
+                                firestore.collection("bikes").document(bikeId)
+                                    .update("status", newStatus)
+                                    .addOnSuccessListener {
+                                        Log.d(TAG, "Statut mis à jour avec succès: $newStatus")
+                                        bike = bike?.copy(status = newStatus)
+                                        updateStatusMessage = "Statut mis à jour avec succès"
+                                        
+                                        // Effacer le message après quelques secondes
+                                        Handler().postDelayed({
+                                            updateStatusMessage = null
+                                        }, 3000)
+                                    }
+                                    .addOnFailureListener { e ->
+                                        // Capture et logge l'erreur complète
+                                        val errorMessage = e.message ?: "Erreur inconnue"
+                                        val errorCode = if (e is com.google.firebase.firestore.FirebaseFirestoreException) {
+                                            "Code: ${e.code} - ${e.code.value()}"
+                                        } else {
+                                            "Type: ${e.javaClass.simpleName}"
+                                        }
+                                        
+                                        Log.e(TAG, "Erreur lors de la mise à jour du statut: $errorMessage")
+                                        Log.e(TAG, "Détails de l'erreur: $errorCode")
+                                        
+                                        // Affiche l'erreur complète à l'utilisateur
+                                        updateStatusMessage = "Erreur: $errorMessage\n$errorCode"
+                                        
+                                        // Pour debug: affiche le chemin exact de l'update
+                                        Log.d(TAG, "Tentative de mise à jour: collection('bikes').document('$bikeId').update('status', '$newStatus')")
+                                        
+                                        // Affiche également l'utilisateur courant pour debug
+                                        val currentUid = FirebaseAuth.getInstance().currentUser?.uid ?: "non connecté"
+                                        Log.d(TAG, "Utilisateur actuel: $currentUid")
+                                    }
                             }
+                        )
                     }
-                )
+                }
                 else          -> Text("Annonce introuvable", Modifier.padding(16.dp))
             }
         }
@@ -360,7 +421,10 @@ private fun BikeDetailContent(
                 
                 Box {
                     Button(
-                        onClick = { expanded = true },
+                        onClick = { 
+                            expanded = true 
+                            Log.d(TAG, "Bouton 'Modifier le statut' cliqué, isAdmin=$isAdmin")
+                        },
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Text("Modifier le statut")
@@ -374,6 +438,7 @@ private fun BikeDetailContent(
                             DropdownMenuItem(
                                 text = { Text(status) },
                                 onClick = {
+                                    Log.d(TAG, "Statut sélectionné: $status")
                                     selectedStatus = status
                                     expanded = false
                                     onStatusUpdate(status)
@@ -382,6 +447,8 @@ private fun BikeDetailContent(
                         }
                     }
                 }
+            } else {
+                Log.d(TAG, "Interface administrateur non affichée car isAdmin=$isAdmin")
             }
         }
 
