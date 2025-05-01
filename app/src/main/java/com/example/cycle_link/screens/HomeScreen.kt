@@ -4,6 +4,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,7 +16,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
 import com.example.cycle_link.model.BikeAd
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
@@ -23,18 +29,15 @@ fun HomeScreen(
     onBikeClick: (String) -> Unit = {}
 ) {
     val firestore = remember { FirebaseFirestore.getInstance() }
-    var bikeAds by remember { mutableStateOf<List<BikeAd>>(emptyList()) }
+    var bikeAds   by remember { mutableStateOf<List<BikeAd>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var query     by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         try {
-            // 1️⃣ Charger tous les docs "bikes"
             val snap = firestore.collection("bikes").get().await()
-
-            // 2️⃣ Pour chaque annonce, on récupère aussi le user doc pour le nom / contact
-            val temp = snap.documents.map { doc ->
-                // Remplissage basique
-                val basic = BikeAd(
+            bikeAds = snap.documents.map { doc ->
+                BikeAd(
                     id           = doc.id,
                     title        = doc.getString("title").orEmpty(),
                     description  = doc.getString("description").orEmpty(),
@@ -46,30 +49,29 @@ fun HomeScreen(
                     longitude    = doc.getDouble("longitude"),
                     seller       = doc.getString("seller").orEmpty(),
                     status       = doc.getString("status").orEmpty(),
-                    createdAt    = doc.getTimestamp("createdAt")  // ou getDate()
-                )
-                // Extraction de l'UID depuis "/users/UID"
-                val uid = basic.seller.substringAfterLast("/")
-                // Lecture synchrone du doc user
-                val userDoc = firestore.collection("users").document(uid).get().await()
-                val name  = userDoc.getString("name").orEmpty()
-                val email = userDoc.getString("email").orEmpty()
-                val phone = userDoc.getString("phone").orEmpty()
-
-                // On renvoie une copie enrichie
-                basic.copy(
-                    sellerName   = name,
-                    contactEmail = email,
-                    contactPhone = phone
+                    createdAt    = doc.getTimestamp("createdAt"),
+                    sellerName   = doc.getString("sellerName").orEmpty(),
+                    contactEmail = doc.getString("contactEmail").orEmpty(),
+                    contactPhone = doc.getString("contactPhone").orEmpty()
                 )
             }
-            bikeAds = temp
-        } catch (e: Exception) {
-            // log ou Toast si besoin
+        } catch(_ : Exception) {
         } finally {
             isLoading = false
         }
     }
+
+    // Filtrer
+    val filtered = if (query.isBlank()) bikeAds
+    else bikeAds.filter {
+        it.title.contains(query, ignoreCase = true) ||
+                it.description.contains(query, ignoreCase = true)
+    }
+
+    // Trier par date
+    val sorted = filtered.sortedByDescending { it.createdAt?.seconds ?: 0L }
+    val recent = sorted.take(4)    // <-- 4 annonces récentes max
+    val popular= sorted.drop(4)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -77,37 +79,77 @@ fun HomeScreen(
             SmallTopAppBar(title = { Text("CycleLink") })
         }
     ) { inner ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(inner)
         ) {
-            when {
-                isLoading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            OutlinedTextField(
+                value            = query,
+                onValueChange    = { query = it },
+                placeholder      = { Text("Rechercher...") },
+                leadingIcon      = { Icon(Icons.Default.Search, contentDescription = null) },
+                modifier         = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            )
+
+            if (isLoading) {
+                Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    CircularProgressIndicator()
                 }
-                bikeAds.isEmpty() -> {
-                    Text("Aucune annonce disponible",
-                        modifier = Modifier.align(Alignment.Center))
+                return@Column
+            }
+
+            if (filtered.isEmpty()) {
+                Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    Text("Aucune annonce trouvée")
                 }
-                else -> {
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding        = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        modifier              = Modifier.fillMaxWidth()
-                    ) {
-                        items(bikeAds) { bike ->
-                            BikeCard(
-                                bikeAd = bike,
-                                onClick= { onBikeClick(bike.id) },
-                                modifier = Modifier
-                                    .width(180.dp)
-                                    .aspectRatio(0.8f)
-                            )
-                        }
-                    }
+                return@Column
+            }
+
+            Text(
+                "Annonces récentes",
+                style    = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+            )
+            LazyRow(
+                contentPadding        = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(recent) { bike ->
+                    BikeCard(
+                        bikeAd   = bike,
+                        onClick  = { onBikeClick(bike.id) },
+                        modifier = Modifier
+                            .width(180.dp)
+                            .aspectRatio(0.8f)
+                    )
                 }
             }
+
+            Text(
+                "Populaires",
+                style    = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(start = 16.dp, top = 16.dp)
+            )
+            LazyRow(
+                contentPadding        = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(popular) { bike ->
+                    BikeCard(
+                        bikeAd   = bike,
+                        onClick  = { onBikeClick(bike.id) },
+                        modifier = Modifier
+                            .width(180.dp)
+                            .aspectRatio(0.8f)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
@@ -118,7 +160,10 @@ fun BikeCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier = modifier.clickable { onClick() }) {
+    Card(
+        modifier = modifier
+            .clickable { onClick() }
+    ) {
         Column {
             AsyncImage(
                 model               = bikeAd.imageUrl,
@@ -130,21 +175,21 @@ fun BikeCard(
             )
             Column(modifier = Modifier.padding(8.dp)) {
                 Text(
-                    text       = bikeAd.title,
-                    style      = MaterialTheme.typography.titleMedium,
-                    maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis
+                    text      = bikeAd.title,
+                    style     = MaterialTheme.typography.titleMedium,
+                    maxLines  = 1,
+                    overflow  = TextOverflow.Ellipsis
                 )
                 Text(
-                    text       = "${bikeAd.price} €",
-                    style      = MaterialTheme.typography.labelLarge,
-                    color      = MaterialTheme.colorScheme.primary
+                    text      = "${bikeAd.price} €",
+                    style     = MaterialTheme.typography.labelLarge,
+                    color     = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text       = bikeAd.sellerName,
-                    style      = MaterialTheme.typography.bodySmall,
-                    maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis
+                    text      = bikeAd.sellerName,
+                    style     = MaterialTheme.typography.bodySmall,
+                    maxLines  = 1,
+                    overflow  = TextOverflow.Ellipsis
                 )
             }
         }
