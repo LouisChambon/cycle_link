@@ -56,7 +56,7 @@ fun NavigationScreensPreview() {
     Cycle_linkTheme {
         androidx.compose.foundation.layout.Column {
             PublishScreen(modifier = Modifier.weight(1f))
-            FavoritesScreen(modifier = Modifier.weight(1f))
+            FavoritesScreen(modifier = Modifier.weight(1f), onBikeClick = {})
             ProfileScreen(
                 modifier = Modifier.weight(1f),
                 onLogoutClick = {},

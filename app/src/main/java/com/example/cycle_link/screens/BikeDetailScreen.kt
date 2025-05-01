@@ -5,6 +5,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.cycle_link.model.BikeAd
 import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
@@ -29,29 +33,34 @@ fun BikeDetailScreen(
     var bike by remember { mutableStateOf<BikeAd?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var isFavorite by remember { mutableStateOf(false) }
+    val uid = FirebaseAuth.getInstance().currentUser!!.uid
 
+    LaunchedEffect(bikeId) {
+        val favDoc = FirebaseFirestore.getInstance()
+            .collection("users").document(uid)
+            .collection("favorites").document(bikeId)
+            .get().await()
+        isFavorite = favDoc.exists()
+    }
     LaunchedEffect(bikeId) {
         isLoading = true
         try {
-            // 1) Récupérer le doc de l'annonce
             val doc = firestore.collection("bikes")
                 .document(bikeId)
                 .get()
                 .await()
 
-            // 2) Extraire l'UID du vendeur depuis le champ "seller"
-            //    ex: "/users/aK5VErRbZNMag6hgYxgbl32GMNe2"
             val sellerPath = doc.getString("seller").orEmpty()
             val sellerUid  = sellerPath.substringAfterLast('/')
 
-            // 3) Récupérer le doc user pour le nom
             val userDoc = firestore.collection("users")
                 .document(sellerUid)
                 .get()
                 .await()
             val sellerName = userDoc.getString("name").orEmpty()
 
-            // 4) Construire l'objet BikeAd avec le sellerName
+
             bike = BikeAd(
                 id           = doc.id,
                 title        = doc.getString("title").orEmpty(),
@@ -78,13 +87,35 @@ fun BikeDetailScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Détail de l'annonce") },
+                title = { Text("Détails") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
                     }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        val favRef = firestore
+                            .collection("users").document(uid)
+                            .collection("favorites").document(bikeId)
+                        if (isFavorite) {
+                            favRef.delete()
+                        } else {
+                            favRef.set(mapOf("addedAt" to FieldValue.serverTimestamp()))
+                        }
+                        isFavorite = !isFavorite
+                    }) {
+                        Icon(
+                            imageVector = if (isFavorite)
+                                Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = null,
+                            tint = if (isFavorite)
+                                MaterialTheme.colorScheme.primary else LocalContentColor.current
+                        )
+                    }
                 }
             )
+
         }
     ) { inner ->
         Box(

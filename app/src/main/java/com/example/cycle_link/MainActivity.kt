@@ -119,7 +119,11 @@ fun MainApp() {
             )
 
             Screen.Favorites -> FavoritesScreen(
-                modifier = Modifier.padding(innerPadding)
+                modifier = Modifier.padding(innerPadding),
+                onBikeClick = { id ->
+                    selectedBikeId = id
+                    currentScreen  = Screen.BikeDetail
+                }
             )
 
             Screen.Profile -> ProfileScreen(
