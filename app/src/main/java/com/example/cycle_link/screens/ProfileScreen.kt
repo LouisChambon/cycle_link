@@ -24,7 +24,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,118 +38,92 @@ import com.example.cycle_link.model.UserDto
 import com.example.cycle_link.model.UserRepository
 import com.example.cycle_link.ui.theme.Cycle_linkTheme
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.runtime.DisposableEffect
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    token: String?,
     modifier: Modifier = Modifier,
     onLogoutClick: () -> Unit,
     onChangePasswordClick: () -> Unit
 ) {
-    var user by remember { mutableStateOf<UserDto?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    val scope = rememberCoroutineScope()
-    val repository = remember(token) { token?.let { UserRepository(it) } }
+    val auth      = FirebaseAuth.getInstance()
+    val user      = auth.currentUser
+    val firestore = FirebaseFirestore.getInstance()
 
-    LaunchedEffect(token) {
-        if (token != null && repository != null) {
-            isLoading = true
-            user = repository.getProfile()
-            isLoading = false
+    var name      by remember { mutableStateOf<String>("") }
+    var role      by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    DisposableEffect(user?.uid) {
+        val reg = user?.uid?.let { uid ->
+            firestore.collection("users")
+                .document(uid)
+                .addSnapshotListener { snap, err ->
+                    if (err != null) {
+                        isLoading = false
+                        return@addSnapshotListener
+                    }
+                    if (snap != null && snap.exists()) {
+                        name = snap.getString("name").orEmpty()
+                        role = snap.getString("role")
+                    }
+                    isLoading = false
+                }
         }
+        onDispose { reg?.remove() }
     }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        topBar = {
+        topBar   = {
             TopAppBar(
                 title = { Text("Mon profil") },
                 actions = {
                     IconButton(onClick = onLogoutClick) {
-                        Icon(
-                            imageVector = Icons.Default.ExitToApp,
-                            contentDescription = "Se déconnecter"
-                        )
+                        Icon(Icons.Default.ExitToApp, contentDescription = "Se déconnecter")
                     }
                 }
             )
         }
     ) { innerPadding ->
         Column(
-            modifier = Modifier
+            modifier           = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                CircularProgressIndicator()
                 return@Column
             }
 
-            Box(
-                modifier = Modifier
-                    .size(96.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Avatar",
-                    modifier = Modifier.size(48.dp)
-                )
-            }
+            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(64.dp))
+            Spacer(Modifier.height(8.dp))
 
-            Spacer(Modifier.height(16.dp))
-
-            Text(
-                text = user?.name.orEmpty(),
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Text(
-                text = user?.email.orEmpty(),
+            // Affiche le nom et l’email
+            Text(name.ifBlank { "— Nom non défini —" },
+                style = MaterialTheme.typography.headlineSmall)
+            Spacer(Modifier.height(4.dp))
+            Text(user?.email.orEmpty(),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Spacer(Modifier.height(24.dp))
 
-            OutlinedTextField(
-                value = user?.role.orEmpty(),
-                onValueChange = { },
-                label = { Text("Role") },
-                enabled = false,
-                modifier = Modifier.fillMaxWidth()
-            )
+            // Affiche le rôle
+            Text("Rôle :", style = MaterialTheme.typography.titleMedium)
+            Text(role ?: "—", style = MaterialTheme.typography.bodyLarge)
 
             Spacer(Modifier.height(24.dp))
 
-            Button(
-                onClick = onChangePasswordClick,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Button(onClick = onChangePasswordClick, modifier = Modifier.fillMaxWidth()) {
                 Text("Changer le mot de passe")
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ProfileScreenPreview() {
-    Cycle_linkTheme {
-        ProfileScreen(
-            token = null,
-            onLogoutClick = {},
-            onChangePasswordClick = {}
-        )
     }
 }

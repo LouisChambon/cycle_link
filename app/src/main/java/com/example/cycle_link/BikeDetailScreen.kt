@@ -42,11 +42,9 @@ import com.example.cycle_link.ui.theme.Cycle_linkTheme
 @Composable
 fun BikeDetailScreen(
     bikeId: String,
-    token: String?,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val repository = remember(token) { BikeRepository(token) }
     var bikeAd by remember { mutableStateOf<BikeAd?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -54,7 +52,6 @@ fun BikeDetailScreen(
     LaunchedEffect(bikeId) {
         isLoading = true
         try {
-            bikeAd = repository.getBikeById(bikeId)
             isLoading = false
         } catch (e: Exception) {
             error = "Failed to load bike details"
@@ -184,6 +181,6 @@ fun BikeDetailContent(bikeAd: BikeAd, modifier: Modifier = Modifier) {
 @Composable
 fun BikeDetailScreenPreview() {
     Cycle_linkTheme {
-        BikeDetailScreen(bikeId = "1", token = null, onBackClick = {})
+        BikeDetailScreen(bikeId = "1", onBackClick = {})
     }
 } 

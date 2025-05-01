@@ -1,141 +1,110 @@
 package com.example.cycle_link.screens
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.cycle_link.model.BikeAd
-import com.example.cycle_link.model.BikeRepository
-import com.example.cycle_link.ui.theme.Cycle_linkTheme
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    token: String?,
     onBikeClick: (String) -> Unit = {}
 ) {
-    val repository = remember(token) { BikeRepository(token) }
+    val firestore = remember { FirebaseFirestore.getInstance() }
     var bikeAds by remember { mutableStateOf<List<BikeAd>>(emptyList()) }
-    var filteredBikeAds by remember { mutableStateOf<List<BikeAd>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    var searchQuery by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(Unit) {
         try {
-            bikeAds = repository.getBikes()
-            filteredBikeAds = bikeAds
-            isLoading = false
-        } catch (e: Exception) {
-            isLoading = false
-        }
-    }
-    
-    LaunchedEffect(searchQuery) {
-        filteredBikeAds = if (searchQuery.isBlank()) {
-            bikeAds
-        } else {
-            bikeAds.filter { 
-                it.title.contains(searchQuery, ignoreCase = true) ||
-                it.sellerName.contains(searchQuery, ignoreCase = true)
+            // 1️⃣ Charger tous les docs "bikes"
+            val snap = firestore.collection("bikes").get().await()
+
+            // 2️⃣ Pour chaque annonce, on récupère aussi le user doc pour le nom / contact
+            val temp = snap.documents.map { doc ->
+                // Remplissage basique
+                val basic = BikeAd(
+                    id           = doc.id,
+                    title        = doc.getString("title").orEmpty(),
+                    description  = doc.getString("description").orEmpty(),
+                    price        = doc.getDouble("price") ?: 0.0,
+                    category     = doc.getString("category").orEmpty(),
+                    condition    = doc.getString("condition").orEmpty(),
+                    imageUrl     = doc.getString("imageUrl").orEmpty(),
+                    latitude     = doc.getDouble("latitude"),
+                    longitude    = doc.getDouble("longitude"),
+                    seller       = doc.getString("seller").orEmpty(),
+                    status       = doc.getString("status").orEmpty(),
+                    createdAt    = doc.getTimestamp("createdAt")  // ou getDate()
+                )
+                // Extraction de l'UID depuis "/users/UID"
+                val uid = basic.seller.substringAfterLast("/")
+                // Lecture synchrone du doc user
+                val userDoc = firestore.collection("users").document(uid).get().await()
+                val name  = userDoc.getString("name").orEmpty()
+                val email = userDoc.getString("email").orEmpty()
+                val phone = userDoc.getString("phone").orEmpty()
+
+                // On renvoie une copie enrichie
+                basic.copy(
+                    sellerName   = name,
+                    contactEmail = email,
+                    contactPhone = phone
+                )
             }
+            bikeAds = temp
+        } catch (e: Exception) {
+            // log ou Toast si besoin
+        } finally {
+            isLoading = false
         }
     }
-    
+
     Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text("CycleLink") },
-                actions = {
-                }
-            )
+        modifier = modifier.fillMaxSize(),
+        topBar   = {
+            SmallTopAppBar(title = { Text("CycleLink") })
         }
-    ) { innerPadding ->
-        Column(
+    ) { inner ->
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(inner)
         ) {
-            SearchBar(
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                onSearch = { isSearchActive = false },
-                active = isSearchActive,
-                onActiveChange = { isSearchActive = it },
-                placeholder = { Text("Rechercher des vélos...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                // No suggestions needed
-            }
-            
-            if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+            when {
+                isLoading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
-            } else if (filteredBikeAds.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Aucune annonce trouvée",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                bikeAds.isEmpty() -> {
+                    Text("Aucune annonce disponible",
+                        modifier = Modifier.align(Alignment.Center))
                 }
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(filteredBikeAds) { bikeAd ->
-                        BikeCard(
-                            bikeAd = bikeAd,
-                            onClick = { onBikeClick(bikeAd.id) }
-                        )
+                else -> {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding        = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        modifier              = Modifier.fillMaxWidth()
+                    ) {
+                        items(bikeAds) { bike ->
+                            BikeCard(
+                                bikeAd = bike,
+                                onClick= { onBikeClick(bike.id) },
+                                modifier = Modifier
+                                    .width(180.dp)
+                                    .aspectRatio(0.8f)
+                            )
+                        }
                     }
                 }
             }
@@ -149,55 +118,35 @@ fun BikeCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(0.8f)
-            .clickable(onClick = onClick)
-    ) {
+    Card(modifier = modifier.clickable { onClick() }) {
         Column {
             AsyncImage(
-                model = bikeAd.imageUrl,
-                contentDescription = bikeAd.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
+                model               = bikeAd.imageUrl,
+                contentDescription  = bikeAd.title,
+                modifier            = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
+                contentScale        = ContentScale.Crop
             )
-            
-            Column(
-                modifier = Modifier.padding(8.dp)
-            ) {
+            Column(modifier = Modifier.padding(8.dp)) {
                 Text(
-                    text = bikeAd.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text       = bikeAd.title,
+                    style      = MaterialTheme.typography.titleMedium,
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis
                 )
-                
                 Text(
-                    text = "${bikeAd.price} €",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    text       = "${bikeAd.price} €",
+                    style      = MaterialTheme.typography.labelLarge,
+                    color      = MaterialTheme.colorScheme.primary
                 )
-                
                 Text(
-                    text = "Vendeur: ${bikeAd.sellerName}",
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Start,
-                    modifier = Modifier.fillMaxWidth()
+                    text       = bikeAd.sellerName,
+                    style      = MaterialTheme.typography.bodySmall,
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis
                 )
             }
         }
     }
 }
-
-@Preview(showBackground = true)
-@Composable
-fun HomeScreenPreview() {
-    Cycle_linkTheme {
-        HomeScreen(token = null)
-    }
-} 
