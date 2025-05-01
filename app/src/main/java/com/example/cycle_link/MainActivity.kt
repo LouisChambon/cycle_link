@@ -101,7 +101,11 @@ fun MainApp() {
                     currentScreen = Screen.BikeDetail
                 }
             )
-            Screen.Publish   -> PublishScreen(modifier = Modifier.padding(innerPadding))
+            Screen.Publish   -> PublishScreen(
+                modifier = Modifier.padding(innerPadding),
+                onSubmit = { title, desc, price, condition, photo ->
+                // TODO: envoyer via BikeRepository.createBike(...)
+            })
             Screen.Favorites -> FavoritesScreen(modifier = Modifier.padding(innerPadding))
             Screen.Profile -> ProfileScreen(
                 token                   = authToken,

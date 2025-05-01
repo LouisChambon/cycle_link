@@ -11,22 +11,19 @@ class BikeRepository(private val token: String?) {
     private val apiService: BikeApiService
 
     init {
-        val client = OkHttpClient.Builder()
-            .apply {
-                token?.let { t ->
-                    addInterceptor(Interceptor { chain ->
-                        val request = chain.request()
-                            .newBuilder()
-                            .addHeader("Authorization", "Bearer $t")
-                            .build()
-                        chain.proceed(request)
-                    })
-                }
+        val client = OkHttpClient.Builder().apply {
+            token?.let {
+                addInterceptor(Interceptor { chain ->
+                    val newReq = chain.request().newBuilder()
+                        .addHeader("Authorization", "Bearer $token")
+                        .build()
+                    chain.proceed(newReq)
+                })
             }
-            .build()
+        }.build()
 
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://mobile-liard.vercel.app/api/")
+            .baseUrl("https://back-cyclelink.vercel.app/api/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -43,5 +40,23 @@ class BikeRepository(private val token: String?) {
     suspend fun getBikeById(id: String): BikeAd? = withContext(Dispatchers.IO) {
         runCatching { apiService.getBikeById(id) }
             .getOrNull()
+    }
+
+    suspend fun createBike(request: BikeRequest): BikeAd? = withContext(Dispatchers.IO) {
+        runCatching { apiService.createBike(request) }
+            .getOrNull()
+    }
+
+    suspend fun updateBike(id: String, request: BikeRequest): BikeAd? =
+        withContext(Dispatchers.IO) {
+            runCatching { apiService.updateBike(id, request) }
+                .getOrNull()
+        }
+
+    suspend fun deleteBike(id: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val resp = apiService.deleteBike(id)
+            resp.isSuccessful
+        }.getOrDefault(false)
     }
 }
