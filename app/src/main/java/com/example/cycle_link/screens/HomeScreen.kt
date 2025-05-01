@@ -45,9 +45,10 @@ import com.example.cycle_link.ui.theme.Cycle_linkTheme
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
+    token: String?,
     onBikeClick: (String) -> Unit = {}
 ) {
-    val repository = remember { BikeRepository() }
+    val repository = remember(token) { BikeRepository(token) }
     var bikeAds by remember { mutableStateOf<List<BikeAd>>(emptyList()) }
     var filteredBikeAds by remember { mutableStateOf<List<BikeAd>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -197,6 +198,6 @@ fun BikeCard(
 @Composable
 fun HomeScreenPreview() {
     Cycle_linkTheme {
-        HomeScreen()
+        HomeScreen(token = null)
     }
 } 

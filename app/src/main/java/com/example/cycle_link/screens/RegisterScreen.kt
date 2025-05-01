@@ -25,12 +25,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.cycle_link.ui.theme.Cycle_linkTheme
+import android.util.Log
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     modifier: Modifier = Modifier,
-    onRegisterClick: () -> Unit = {},
+    onRegisterClick: (name: String, email: String, password: String) -> Unit,
     onLoginClick: () -> Unit = {}
 ) {
     var name by remember { mutableStateOf("") }
@@ -123,8 +124,12 @@ fun RegisterScreen(
         Button(
             onClick = {
                 showError = true
+                Log.d("RegisterScreen", "Bouton S'inscrire cliqué (name=$name, email=$email)")
                 if (validateInputs(name, email, password, confirmPassword)) {
-                    onRegisterClick()
+                    Log.d("RegisterScreen", "Inputs valides, onRegisterClick va être invoqué")
+                    onRegisterClick(name, email, password)
+                } else {
+                    Log.d("RegisterScreen", "Inputs invalides, showError=$showError")
                 }
             },
             modifier = Modifier
@@ -160,6 +165,9 @@ private fun validateInputs(
 @Composable
 fun RegisterScreenPreview() {
     Cycle_linkTheme {
-        RegisterScreen()
+        RegisterScreen(
+            onRegisterClick = { _, _, _ -> },
+            onLoginClick    = {}
+        )
     }
 } 

@@ -30,7 +30,7 @@ import com.example.cycle_link.ui.theme.Cycle_linkTheme
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
-    onLoginClick: () -> Unit = {},
+    onLoginClick: (String, String) -> Unit = { _, _ -> },
     onRegisterClick: () -> Unit = {}
 ) {
     var email by remember { mutableStateOf("") }
@@ -87,7 +87,7 @@ fun LoginScreen(
             onClick = {
                 showError = true
                 if (email.isNotBlank() && password.isNotBlank()) {
-                    onLoginClick()
+                    onLoginClick(email, password)
                 }
             },
             modifier = Modifier
@@ -110,6 +110,6 @@ fun LoginScreen(
 @Composable
 fun LoginScreenPreview() {
     Cycle_linkTheme {
-        LoginScreen()
+        LoginScreen(onLoginClick = { _, _ -> })
     }
 } 
