@@ -103,7 +103,15 @@ fun MainApp() {
             )
             Screen.Publish   -> PublishScreen(modifier = Modifier.padding(innerPadding))
             Screen.Favorites -> FavoritesScreen(modifier = Modifier.padding(innerPadding))
-            Screen.Profile   -> ProfileScreen(modifier = Modifier.padding(innerPadding))
+            Screen.Profile -> ProfileScreen(
+                modifier      = Modifier.padding(innerPadding),
+                onLogoutClick = {
+                    authToken = null
+                    currentScreen = Screen.Login
+                },
+                onChangePasswordClick = {
+                }
+            )
 
             Screen.BikeDetail -> selectedBikeId?.let { id ->
                 BikeDetailScreen(
