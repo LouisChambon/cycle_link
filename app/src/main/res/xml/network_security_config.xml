@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- On autorise les certificats système ET ceux qu'on peut ajouter manuellement à l'émulateur -->
+    <base-config>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <domain-config>
+        <domain includeSubdomains="true">back-cyclelink.vercel.app</domain>
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="user"/>
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

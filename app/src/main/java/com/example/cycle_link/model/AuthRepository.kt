@@ -38,7 +38,7 @@ class AuthRepository {
             .build()
 
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://back-cyclelink-q4p92zm67-louis-chambons-projects.vercel.app/api/")
+            .baseUrl("https://back-cyclelink.vercel.app/api/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

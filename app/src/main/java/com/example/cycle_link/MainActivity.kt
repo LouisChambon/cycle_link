@@ -104,6 +104,7 @@ fun MainApp() {
             Screen.Publish   -> PublishScreen(modifier = Modifier.padding(innerPadding))
             Screen.Favorites -> FavoritesScreen(modifier = Modifier.padding(innerPadding))
             Screen.Profile -> ProfileScreen(
+                token                   = authToken,
                 modifier      = Modifier.padding(innerPadding),
                 onLogoutClick = {
                     authToken = null
