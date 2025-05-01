@@ -28,26 +28,47 @@ fun BikeDetailScreen(
     val firestore = remember { FirebaseFirestore.getInstance() }
     var bike by remember { mutableStateOf<BikeAd?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(bikeId) {
+        isLoading = true
         try {
-            val doc = firestore.collection("bikes").document(bikeId).get().await()
+            // 1) Récupérer le doc de l'annonce
+            val doc = firestore.collection("bikes")
+                .document(bikeId)
+                .get()
+                .await()
+
+            // 2) Extraire l'UID du vendeur depuis le champ "seller"
+            //    ex: "/users/aK5VErRbZNMag6hgYxgbl32GMNe2"
+            val sellerPath = doc.getString("seller").orEmpty()
+            val sellerUid  = sellerPath.substringAfterLast('/')
+
+            // 3) Récupérer le doc user pour le nom
+            val userDoc = firestore.collection("users")
+                .document(sellerUid)
+                .get()
+                .await()
+            val sellerName = userDoc.getString("name").orEmpty()
+
+            // 4) Construire l'objet BikeAd avec le sellerName
             bike = BikeAd(
-                id = doc.id,
-                title = doc.getString("title").orEmpty(),
-                description = doc.getString("description").orEmpty(),
-                price = doc.getDouble("price") ?: 0.0,
-                category = doc.getString("category").orEmpty(),
-                condition = doc.getString("condition").orEmpty(),
-                imageUrl = doc.getString("imageUrl").orEmpty(),
-                latitude = doc.getDouble("latitude"),
-                longitude = doc.getDouble("longitude"),
-                seller = doc.getString("seller").orEmpty(),
-                status = doc.getString("status").orEmpty(),
-                createdAt = doc.getTimestamp("createdAt") ?: Timestamp.now(),
-                sellerName = doc.getString("sellerName").orEmpty()
+                id           = doc.id,
+                title        = doc.getString("title").orEmpty(),
+                description  = doc.getString("description").orEmpty(),
+                price        = doc.getDouble("price") ?: 0.0,
+                category     = doc.getString("category").orEmpty(),
+                condition    = doc.getString("condition").orEmpty(),
+                imageUrl     = doc.getString("imageUrl").orEmpty(),
+                latitude     = doc.getDouble("latitude"),
+                longitude    = doc.getDouble("longitude"),
+                seller       = sellerPath,
+                status       = doc.getString("status").orEmpty(),
+                createdAt    = doc.getTimestamp("createdAt") ?: Timestamp.now(),
+                sellerName   = sellerName
             )
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            error = "Impossible de charger l'annonce : ${e.localizedMessage}"
         } finally {
             isLoading = false
         }
@@ -72,74 +93,76 @@ fun BikeDetailScreen(
                 .padding(inner),
             contentAlignment = Alignment.TopCenter
         ) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else {
-                if (bike != null) {
-                    bike?.let { b ->
-                        Column(
-                            modifier = Modifier
-                                .verticalScroll(rememberScrollState())
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            AsyncImage(
-                                model = b.imageUrl,
-                                contentDescription = b.title,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp),
-                                contentScale = ContentScale.Crop
-                            )
-
-                            Text(text = b.title, style = MaterialTheme.typography.headlineSmall)
-                            Text(
-                                text = "${b.price} €",
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            val statusColor = when (b.status) {
-                                "Validé" -> Color(0xFF4CAF50)   // vert
-                                "En cours d'approbation" -> Color(0xFFFFA500)   // orange
-                                "Refusé" -> Color(0xFFF44336)   // rouge
-                                else -> Color.Gray
-                            }
-                            Text(
-                                text = b.status,
-                                color = statusColor,
-                                style = MaterialTheme.typography.labelLarge
-                            )
-
-                            Divider()
-
-                            Text("Description", style = MaterialTheme.typography.titleMedium)
-                            Text(b.description, style = MaterialTheme.typography.bodyMedium)
-
-                            Text(
-                                "Catégorie : ${b.category}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                "État : ${b.condition}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-
-                            Divider()
-
-                            Text("Vendeur", style = MaterialTheme.typography.titleMedium)
-                            Text(b.sellerName, style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                } else {
+            when {
+                isLoading -> {
+                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                }
+                error != null -> {
                     Text(
-                        "Impossible de charger l'annonce",
-                        modifier = Modifier.align(Alignment.Center),
-                        style = MaterialTheme.typography.bodyLarge
+                        error!!,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+                bike != null -> {
+                    BikeDetailContent(bike!!)
+                }
+                else -> {
+                    Text(
+                        "Annonce introuvable",
+                        modifier = Modifier.padding(16.dp)
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun BikeDetailContent(bikeAd: BikeAd, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        AsyncImage(
+            model = bikeAd.imageUrl,
+            contentDescription = bikeAd.title,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            contentScale = ContentScale.Crop
+        )
+
+        Text(text = bikeAd.title, style = MaterialTheme.typography.headlineSmall)
+        Text(
+            text = "${bikeAd.price} €",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        val statusColor = when (bikeAd.status) {
+            "Validé" -> Color(0xFF4CAF50)
+            "En cours d'approbation" -> Color(0xFFFFA500)
+            "Refusé" -> Color(0xFFF44336)
+            else -> Color.Gray
+        }
+        Text(
+            text = bikeAd.status,
+            color = statusColor,
+            style = MaterialTheme.typography.labelLarge
+        )
+
+        Divider()
+
+        Text("Description", style = MaterialTheme.typography.titleMedium)
+        Text(bikeAd.description, style = MaterialTheme.typography.bodyMedium)
+
+        Divider()
+
+        Text("Vendeur", style = MaterialTheme.typography.titleMedium)
+        Text(bikeAd.sellerName, style = MaterialTheme.typography.bodyMedium)
     }
 }
