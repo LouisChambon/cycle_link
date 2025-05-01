@@ -59,8 +59,7 @@ fun NavigationScreensPreview() {
             FavoritesScreen(modifier = Modifier.weight(1f), onBikeClick = {})
             ProfileScreen(
                 modifier = Modifier.weight(1f),
-                onLogoutClick = {},
-                onChangePasswordClick = {}
+                onLogoutClick = {}
             )
         }
     }

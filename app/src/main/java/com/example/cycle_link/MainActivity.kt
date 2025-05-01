@@ -185,8 +185,7 @@ fun MainApp(
 
             Screen.Profile -> ProfileScreen(
                 modifier = Modifier.padding(inner),
-                onLogoutClick = { auth.signOut(); currentScreen = Screen.Login },
-                onChangePasswordClick = {}
+                onLogoutClick = { auth.signOut(); currentScreen = Screen.Login }
             )
 
             Screen.BikeDetail -> selectedBikeId?.let { id ->
