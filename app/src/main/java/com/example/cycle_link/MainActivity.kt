@@ -19,7 +19,6 @@ import com.example.cycle_link.ui.theme.Cycle_linkTheme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.tasks.await
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,7 +35,6 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainApp() {
-    // Instances Firebase
     val auth      = remember { FirebaseAuth.getInstance() }
     val firestore = remember { FirebaseFirestore.getInstance() }
     val context   = LocalContext.current
@@ -59,8 +57,8 @@ fun MainApp() {
     ) { innerPadding ->
         when (currentScreen) {
             Screen.Login -> LoginScreen(
-                modifier      = Modifier.padding(innerPadding),
-                onLoginClick  = { email, pwd ->
+                modifier       = Modifier.padding(innerPadding),
+                onLoginClick   = { email, pwd ->
                     auth.signInWithEmailAndPassword(email, pwd)
                         .addOnSuccessListener {
                             Toast.makeText(context, "Connecté !", Toast.LENGTH_SHORT).show()
@@ -74,11 +72,11 @@ fun MainApp() {
             )
 
             Screen.Register -> RegisterScreen(
-                modifier = Modifier.padding(innerPadding),
-                onRegisterClick = { name, email, pwd ->
+                modifier         = Modifier.padding(innerPadding),
+                onRegisterClick  = { name, email, pwd ->
                     auth.createUserWithEmailAndPassword(email, pwd)
                         .addOnSuccessListener { authRes ->
-                            val uid = authRes.user!!.uid
+                            val uid  = authRes.user!!.uid
                             val data = mapOf(
                                 "email"     to email,
                                 "name"      to name,
@@ -104,12 +102,11 @@ fun MainApp() {
                 onLoginClick = { currentScreen = Screen.Login }
             )
 
-
             Screen.Home -> HomeScreen(
                 modifier    = Modifier.padding(innerPadding),
                 onBikeClick = { id ->
                     selectedBikeId = id
-                    currentScreen = Screen.BikeDetail
+                    currentScreen  = Screen.BikeDetail
                 }
             )
 
@@ -126,21 +123,21 @@ fun MainApp() {
             )
 
             Screen.Profile -> ProfileScreen(
-                modifier               = Modifier.padding(innerPadding),
-                onLogoutClick          = {
+                modifier              = Modifier.padding(innerPadding),
+                onLogoutClick         = {
                     auth.signOut()
                     currentScreen = Screen.Login
                 },
-                onChangePasswordClick  = {
-                    // TODO: naviguer vers un écran de reset / changer mdp
+                onChangePasswordClick = {
+                    // TODO: Naviguer vers un écran de changement de mot de passe
                 }
             )
 
             Screen.BikeDetail -> selectedBikeId?.let { id ->
                 BikeDetailScreen(
-                    bikeId     = id,
-                    onBackClick= { currentScreen = Screen.Home },
-                    modifier   = Modifier.padding(innerPadding)
+                    bikeId      = id,
+                    onBackClick = { currentScreen = Screen.Home },
+                    modifier    = Modifier.padding(innerPadding)
                 )
             }
         }
